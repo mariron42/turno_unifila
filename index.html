@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IMSS - Turno Unifila</title>
+    <style>
+        :root {
+            --primary-color: #006847;
+            --secondary-color: #00a86b;
+            --text-color: #333;
+            --background-color: #f0f0f0;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        header {
+            background-color: var(--primary-color);
+            color: white;
+            text-align: center;
+            padding: 1rem;
+        }
+        h1, h2 {
+            margin-bottom: 1rem;
+        }
+        .card {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        input[type="text"], button {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: var(--primary-color);
+        }
+        #resultado, #ultimoTurno {
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid var(--primary-color);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+            display: none;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>IMSS - Turno Unifila</h1>
+    </header>
+    <div class="container">
+        <div class="card">
+            <h2>Turno actual atendido</h2>
+            <p id="ultimoTurno">Cargando...</p>
+        </div>
+        
+        <div class="card">
+            <h2>Buscar mi turno</h2>
+            <input type="text" id="nombreInput" placeholder="Ingresa tu nombre" aria-label="Ingresa tu nombre">
+            <button onclick="buscarTurnoPorNombre()">Buscar turno</button>
+            <div class="loader" id="loader"></div>
+            <p id="resultado"></p>
+        </div>
+    </div>
+
+    <script>
+        const urlCSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vREcyV03371MlmUfeTdaChjrsTV06nOSuN64LBNXQ55muGb3T7Q5MSfqrWaRIdCpfp8NmZzgRaipQML/pub?output=csv';
+        let datos = [];
+
+        async function cargarDatos() {
+            const response = await fetch(urlCSV);
+            const data = await response.text();
+            const filas = data.split('\n').map(row => row.split(','));
+            return filas.filter(fila => fila.length >= 3);
+        }
+
+        async function mostrarUltimoTurno() {
+            try {
+                datos = await cargarDatos();
+                let turnoAtendido = datos.reduce((ultimo, fila) => {
+                    return (fila[2].trim().toLowerCase() === 'true') ? parseInt(fila[0]) : ultimo;
+                }, null);
+
+                document.getElementById('ultimoTurno').innerText = turnoAtendido !== null
+                    ? `El último turno atendido es: ${turnoAtendido}`
+                    : 'No se ha atendido ningún turno aún.';
+            } catch (error) {
+                console.error('Error al cargar datos:', error);
+                document.getElementById('ultimoTurno').innerText = 'Error al cargar datos. Por favor, intente más tarde.';
+            }
+        }
+
+        async function buscarTurnoPorNombre() {
+            document.getElementById('loader').style.display = 'block';
+            document.getElementById('resultado').innerText = '';
+
+            try {
+                if (datos.length === 0) {
+                    datos = await cargarDatos();
+                }
+
+                const nombreBuscado = document.getElementById('nombreInput').value.trim().toLowerCase();
+                let mejorCoincidencia = { nombre: '', turno: null, porcentaje: 0 };
+
+                datos.forEach(fila => {
+                    const nombreOriginal = fila[1].trim();
+                    const nombreComparar = nombreOriginal.toLowerCase();
+                    const coincidencia = calcularCoincidencia(nombreBuscado, nombreComparar);
+                    
+                    if (coincidencia > mejorCoincidencia.porcentaje && coincidencia >= 0.8) {
+                        mejorCoincidencia = { 
+                            nombre: nombreOriginal, 
+                            turno: fila[0], 
+                            porcentaje: coincidencia 
+                        };
+                    }
+                });
+
+                let mensajeResultado = '';
+
+                if (mejorCoincidencia.turno !== null) {
+                    const ultimoTurnoAtendido = await obtenerUltimoTurnoAtendido();
+                    if (ultimoTurnoAtendido !== null) {
+                        const lugaresRestantes = parseInt(mejorCoincidencia.turno) - ultimoTurnoAtendido;
+                        mensajeResultado = `Hola ${mejorCoincidencia.nombre}, tu turno es: ${mejorCoincidencia.turno}. 
+                            El último turno atendido es: ${ultimoTurnoAtendido}. 
+                            ${lugaresRestantes > 0 
+                                ? `Faltan aproximadamente ${lugaresRestantes} personas para tu turno.` 
+                                : 'Tu turno ya ha sido llamado.'}`;
+                    }
+                } else {
+                    mensajeResultado = 'No se encontró un turno para ese nombre.';
+                }
+
+                document.getElementById('resultado').innerText = mensajeResultado;
+            } catch (error) {
+                console.error('Error en la búsqueda:', error);
+                document.getElementById('resultado').innerText = 'Error al buscar el turno. Por favor, intente nuevamente.';
+            } finally {
+                document.getElementById('loader').style.display = 'none';
+            }
+        }
+
+        function calcularCoincidencia(nombreBuscado, nombre) {
+            const distancia = levenshteinDistance(nombreBuscado, nombre);
+            return 1 - (distancia / Math.max(nombreBuscado.length, nombre.length));
+        }
+
+        function levenshteinDistance(a, b) {
+            const matrix = [];
+
+            for (let i = 0; i <= b.length; i++) {
+                matrix[i] = [i];
+            }
+
+            for (let j = 0; j <= a.length; j++) {
+                matrix[0][j] = j;
+            }
+
+            for (let i = 1; i <= b.length; i++) {
+                for (let j = 1; j <= a.length; j++) {
+                    if (b.charAt(i - 1) === a.charAt(j - 1)) {
+                        matrix[i][j] = matrix[i - 1][j - 1];
+                    } else {
+                        matrix[i][j] = Math.min(
+                            matrix[i - 1][j - 1] + 1,
+                            matrix[i][j - 1] + 1,
+                            matrix[i - 1][j] + 1
+                        );
+                    }
+                }
+            }
+
+            return matrix[b.length][a.length];
+        }
+
+        async function obtenerUltimoTurnoAtendido() {
+            return datos.reduce((ultimo, fila) => {
+                return (fila[2].trim().toLowerCase() === 'true') ? Math.max(ultimo, parseInt(fila[0])) : ultimo;
+            }, 0);
+        }
+
+        window.onload = mostrarUltimoTurno;
+        setInterval(mostrarUltimoTurno, 60000); // Actualizar cada minuto
+    </script>
+</body>
+</html>
