@@ -3,14 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IMSS - Turno Unifila</title>
+    <title>Hospital - Turno Unifila</title>
+    <!-- Meta tags para cambiar el color de la barra del navegador -->
+    <meta name="theme-color" content="#006847">
+    <meta name="apple-mobile-web-app-status-bar-style" content="#006847">
     <style>
+        /* Definición de variables CSS para colores principales */
         :root {
             --primary-color: #006847;
             --secondary-color: #00a86b;
             --text-color: #333;
             --background-color: #f0f0f0;
         }
+
+        /* Estilos generales del body */
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: var(--background-color);
@@ -19,20 +25,28 @@
             margin: 0;
             padding: 0;
         }
+
+        /* Contenedor principal */
         .container {
             max-width: 800px;
             margin: 0 auto;
             padding: 20px;
         }
+
+        /* Estilos del encabezado */
         header {
             background-color: var(--primary-color);
             color: white;
             text-align: center;
             padding: 1rem;
         }
+
+        /* Estilos de los títulos */
         h1, h2 {
             margin-bottom: 1rem;
         }
+
+        /* Estilos de las tarjetas */
         .card {
             background-color: white;
             border-radius: 8px;
@@ -40,6 +54,8 @@
             padding: 20px;
             margin-bottom: 20px;
         }
+
+        /* Estilos de los campos de entrada y botones */
         input[type="text"], button {
             width: 100%;
             padding: 10px;
@@ -48,6 +64,7 @@
             border-radius: 4px;
             box-sizing: border-box;
         }
+
         button {
             background-color: var(--secondary-color);
             color: white;
@@ -55,13 +72,18 @@
             cursor: pointer;
             transition: background-color 0.3s ease;
         }
+
         button:hover {
             background-color: var(--primary-color);
         }
+
+        /* Estilos para los resultados y el último turno */
         #resultado, #ultimoTurno {
             font-weight: bold;
             margin-top: 10px;
         }
+
+        /* Estilos del indicador de carga */
         .loader {
             border: 5px solid #f3f3f3;
             border-top: 5px solid var(--primary-color);
@@ -72,6 +94,8 @@
             margin: 20px auto;
             display: none;
         }
+
+        /* Animación para el indicador de carga */
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
@@ -80,7 +104,7 @@
 </head>
 <body>
     <header>
-        <h1>IMSS - Turno Unifila</h1>
+        <h1>Hospital - Turno Unifila</h1>
     </header>
     <div class="container">
         <div class="card">
@@ -98,9 +122,13 @@
     </div>
 
     <script>
+        // URL de la hoja de cálculo de Google publicada como CSV
         const urlCSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vREcyV03371MlmUfeTdaChjrsTV06nOSuN64LBNXQ55muGb3T7Q5MSfqrWaRIdCpfp8NmZzgRaipQML/pub?output=csv';
+        
+        // Array para almacenar los datos de la hoja de cálculo
         let datos = [];
 
+        // Función para cargar los datos desde la hoja de cálculo
         async function cargarDatos() {
             const response = await fetch(urlCSV);
             const data = await response.text();
@@ -108,6 +136,7 @@
             return filas.filter(fila => fila.length >= 3);
         }
 
+        // Función para mostrar el último turno atendido
         async function mostrarUltimoTurno() {
             try {
                 datos = await cargarDatos();
@@ -124,6 +153,7 @@
             }
         }
 
+        // Función principal para buscar el turno por nombre
         async function buscarTurnoPorNombre() {
             document.getElementById('loader').style.display = 'block';
             document.getElementById('resultado').innerText = '';
@@ -175,11 +205,13 @@
             }
         }
 
+        // Función para calcular la coincidencia entre dos cadenas
         function calcularCoincidencia(nombreBuscado, nombre) {
             const distancia = levenshteinDistance(nombreBuscado, nombre);
             return 1 - (distancia / Math.max(nombreBuscado.length, nombre.length));
         }
 
+        // Función para calcular la distancia de Levenshtein entre dos cadenas
         function levenshteinDistance(a, b) {
             const matrix = [];
 
@@ -208,14 +240,17 @@
             return matrix[b.length][a.length];
         }
 
+        // Función para obtener el último turno atendido
         async function obtenerUltimoTurnoAtendido() {
             return datos.reduce((ultimo, fila) => {
                 return (fila[2].trim().toLowerCase() === 'true') ? Math.max(ultimo, parseInt(fila[0])) : ultimo;
             }, 0);
         }
 
+        // Cargar el último turno atendido al cargar la página
         window.onload = mostrarUltimoTurno;
-        setInterval(mostrarUltimoTurno, 60000); // Actualizar cada minuto
+        // Actualizar el último turno atendido cada minuto
+        setInterval(mostrarUltimoTurno, 60000);
     </script>
 </body>
 </html>
